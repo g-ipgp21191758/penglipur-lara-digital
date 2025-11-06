@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Penglipur lara digital: dendang warisan</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Cormorant Garamond for elegant titles and Inter for body text -->
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Tetapkan fon asas dan tema Black & Gold */
+        :root {
+            font-size: 16px; /* Default medium size for responsiveness */
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a1a1a; /* Dark background */
+            color: #e5e5e5; /* Light text */
+            transition: font-size 0.3s;
+        }
+        /* Font size variations for inclusivity */
+        .font-small body { font-size: 14px; }
+        .font-large body { font-size: 20px; }
+
+        .app-container {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 1rem;
+        }
+        .title-font {
+            font-family: 'Cormorant Garamond', serif;
+        }
+        .card-gold-border {
+            border: 4px solid #FACC15; /* Gold border */
+            box-shadow: 0 10px 15px -3px rgba(255, 215, 0, 0.2), 0 4px 6px -2px rgba(255, 215, 0, 0.1);
+        }
+        .vibrant-button {
+            transition: all 0.2s ease-in-out;
+            transform: scale(1);
+        }
+        .vibrant-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 20px rgba(250, 204, 21, 0.4);
+        }
+
+        /* Style for Ujian Minda (Quiz) */
+        .quiz-option {
+            transition: all 0.1s;
+            cursor: pointer;
+            background-color: #333333;
+            color: #FFD700;
+        }
+        .quiz-option:hover {
+            background-color: #444444;
+        }
+        .correct-answer {
+            background-color: #059669; /* Green */
+            color: white;
+            animation: pulse 0.5s 2;
+        }
+        .wrong-answer {
+            background-color: #dc2626; /* Red */
+            color: white;
+            animation: shake 0.5s;
+        }
+        .disabled-option {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        /* --- Drag & Drop Game Styles (NEW) --- */
+        .draggable-item {
+            cursor: grab;
+            transition: all 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            border: 2px solid transparent;
+        }
+        .draggable-item:hover {
+            opacity: 0.9;
+            transform: scale(1.02);
+        }
+        .draggable-item:active {
+            cursor: grabbing;
+        }
+        .drag-over {
+            border: 3px dashed #FACC15; /* Gold dashed border on hover */
+            background-color: #3e3e3e !important;
+        }
+        .drop-target-active {
+            min-height: 6rem; /* Ensure drop target is large enough */
+            transition: background-color 0.2s, border 0.2s;
+        }
+        .drop-target-matched {
+            background-color: #274737 !important; /* Darker green background for matched fact */
+            color: #90EE90;
+            border: 1px solid #059669;
+            pointer-events: none;
+        }
+        .match-list {
+            min-height: 400px;
+        }
+
+        /* Keyframe Animations */
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+
+        /* Responsive font size for large text setting */
+        .font-large .text-base { font-size: 1.125rem; }
+        .font-large .text-lg { font-size: 1.25rem; }
+        .font-large .text-xl { font-size: 1.5rem; }
+        .font-large .text-2xl { font-size: 1.875rem; }
+        .font-large .text-3xl { font-size: 2.25rem; }
+    </style>
+</head>
+<body>
+
+<div id="app" class="app-container w-full">
+    <!-- Konten akan dimuatkan di sini secara dinamik -->
+</div>
+
+<script>
+    // --- Konfigurasi Global & Bunyi ---
+    let globalSettings = {
+        soundEnabled: true,
+        fontSize: 'medium' // 'small', 'medium', 'large'
+    };
+
+    let audioContext = null;
+
+    // Load settings from localStorage if available (for persistence)
+    const storedSettings = localStorage.getItem('globalSettings');
+    if (storedSettings) {
+        try {
+            globalSettings = JSON.parse(storedSettings);
+        } catch (e) {
+            console.error("Gagal memuat tetapan dari localStorage:", e);
+        }
+    }
+
+    // Initialize audio context on first user interaction
+    function initAudioContext() {
+        if (!audioContext) {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            } catch (e) {
+                console.warn("Web Audio API tidak disokong atau gagal dimulakan.");
+            }
+        }
+        if (audioContext && audioContext.state === 'suspended') {
+            // Resume context if needed on interaction
+            audioContext.resume();
+        }
+    }
+
+    function playClickSound() {
+        if (!globalSettings.soundEnabled || !audioContext) return;
+        if (audioContext.state === 'suspended') {
+            audioContext.resume();
+        }
+
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(880, audioContext.currentTime);
+        gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.08);
+
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.1);
+    }
+
+    function playMatchSound() {
+        if (!globalSettings.soundEnabled || !audioContext) return;
+        if (audioContext.state === 'suspended') {
+            audioContext.resume();
+        }
+
+        const now = audioContext.currentTime;
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        oscillator.type = 'triangle';
+        oscillator.frequency.setValueAtTime(1000, now);
+        oscillator.frequency.linearRampToValueAtTime(1500, now + 0.1);
+
+        gainNode.gain.setValueAtTime(0.3, now);
+        gainNode.gain.linearRampToValueAtTime(0.0001, now + 0.15);
+
+        oscillator.start(now);
+        oscillator.stop(now + 0.15);
+    }
+
+    function playFailSound() {
+        if (!globalSettings.soundEnabled || !audioContext) return;
+        if (audioContext.state === 'suspended') {
+            audioContext.resume();
+        }
+
+        const now = audioContext.currentTime;
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        oscillator.type = 'sawtooth';
+        oscillator.frequency.setValueAtTime(200, now);
+        oscillator.frequency.linearRampToValueAtTime(100, now + 0.1);
+
+        gainNode.gain.setValueAtTime(0.2, now);
+        gainNode.gain.linearRampToValueAtTime(0.0001, now + 0.15);
+
+        oscillator.start(now);
+        oscillator.stop(now + 0.15);
+    }
+
+    function applySettings() {
+        const body = document.body;
+        body.classList.remove('font-small', 'font-large');
+
+        if (globalSettings.fontSize === 'small') {
+            body.classList.add('font-small');
+        } else if (globalSettings.fontSize === 'large') {
+            body.classList.add('font-large');
+        }
+        localStorage.setItem('globalSettings', JSON.stringify(globalSettings));
+    }
+
+    // --- Data Inovasi (kekal sama) ---
+    const songs = [
+        {
+            id: 'rasa-sayang',
+            title: 'Rasa Sayang',
+            image: 'https://placehold.co/150x150/f59e0b/1a1a1a?text=Rasa',
+            lyrics: 'Rasa sayang, hey rasa sayang sayang, hey. lihat nona dari jauh rasa sayang sayang, hey.',
+            youtubeLink: 'https://youtu.be/kx41LzqDzaA?si=DIvdJSlQkTvOnn8b',
+            module: `<p class="text-gray-300 mb-4">Lagu 'Rasa Sayang' ialah lagu rakyat yang sangat popular di Nusantara. Ia sering dinyanyikan untuk menunjukkan rasa gembira, kasih sayang, dan keindahan alam.</p><h3 class="title-font font-bold text-xl mb-2 text-yellow-500">Fakta Menarik:</h3><ul class="list-disc list-inside text-gray-300"><li>Dendangan ini mempunyai melodi yang ceria dan mudah diingati.</li><li>Lagu ini adalah lagu balasan pantun.</li><li>Sering digunakan dalam tarian atau permainan kanak-kanak.</li></ul>`,
+            fact: 'Menunjukkan rasa gembira dan kasih sayang.'
+        },
+        {
+            id: 'jong-jong-inai',
+            title: 'Jong Jong Inai',
+            image: 'https://placehold.co/150x150/a855f7/1a1a1a?text=Inai',
+            lyrics: 'Jong jong inai, mak ipong rajawali 3x. sepak tunggul inai berdarah ibu kaki',
+            youtubeLink: 'https://youtu.be/Ft9H0XT_qq8?si=sbKK5D4r9E_rgi53',
+            module: `<p class="text-gray-300 mb-4">Lagu 'Jong Jong Inai' berasal dari Negeri Sembilan. Ia biasanya dinyanyikan sambil bermain, di mana kanak-kanak duduk beramai-ramai dan bergoyang ke kiri dan ke kanan mengikut irama lagu.</p><h3 class="title-font font-bold text-xl mb-2 text-yellow-500">Fakta Menarik:</h3><ul class="list-disc list-inside text-gray-300"><li>'Jong' bermaksud duduk atau berhimpun.</li><li>'Inai' merujuk kepada tumbuhan yang digunakan untuk mewarnakan kuku.</li><li>Mengajar tentang perpaduan dan kerjasama.</li></ul>`,
+            fact: 'Berasal dari Negeri Sembilan.'
+        },
+        {
+            id: 'can-mali-can',
+            title: 'Can Mali Can',
+            image: 'https://placehold.co/150x150/14b8a6/1a1a1a?text=Can',
+            lyrics: 'Can mali can, can mali can, can mali can, ketipung payung',
+            youtubeLink: 'https://youtu.be/CSwBPhv4POM?si=Q79LPVXCFd_k3GmE',
+            module: `<p class="text-gray-300 mb-4">Lagu 'Can Mali Can' adalah lagu Melayu dari Melaka yang dinyanyikan dalam irama pantun. Ia adalah lagu yang cergas dan penuh dengan unsur usik-mengusik dan cabaran teka-teki.</p><h3 class="title-font font-bold text-xl mb-2 text-yellow-500">Fakta Menarik:</h3><ul class="list-disc list-inside text-gray-300"><li>Melodinya berirama riang dan sesuai untuk tarian zapin ringan.</li><li>Liriknya sering berubah mengikut kreativiti penyanyi.</li><li>Dipercayai berasal dari negeri Melaka.</li></ul>`,
+            fact: 'Sesuai untuk tarian zapin ringan.'
+        },
+        {
+            id: 'wau-bulan',
+            title: 'Wau Bulan',
+            image: 'https://placehold.co/150x150/3b82f6/1a1a1a?text=Wau',
+            lyrics: 'E Wau Bulan, Wau Bulan, teraju Tiga. Wau di belai, wau di belai, wau di belai, wau di belai.',
+            youtubeLink: 'https://www.youtube.com/watch?v=F0L6iU6F48k',
+            module: `<p class="text-gray-300 mb-4">Lagu 'Wau Bulan' ialah lagu rakyat dari Kelantan, berkait rapat dengan permainan wau. Ia menggambarkan keindahan wau yang melayang di angkasa.</p><h3 class="title-font font-bold text-xl mb-2 text-yellow-500">Fakta Menarik:</h3><ul class="list-disc list-inside text-gray-300"><li>Wau Bulan adalah sejenis layang-layang tradisional.</li><li>Lagu ini popular di pantai timur Semenanjung Malaysia.</li><li>Melambangkan seni kraf dan budaya Melayu.</li></ul>`,
+            fact: 'Lagu rakyat dari Kelantan.'
+        }
+    ];
+
+    const quizQuestions = [
+        { id: 1, question: "Lengkapkan lirik ini: 'Rasa sayang, hey rasa sayang sayang, hey. lihat nona dari jauh...'", options: ["Mari sayang sayang, hey", "Rasa sayang sayang, hey", "Sangat sayang sayang, hey"], correctAnswer: "Rasa sayang sayang, hey", difficulty: "Mudah" },
+        { id: 2, question: "Lagu 'Jong Jong Inai' mengajar kita tentang apa?", options: ["Pergaduhan", "Perpisahan", "Perpaduan dan kerjasama"], correctAnswer: "Perpaduan dan kerjasama", difficulty: "Mudah" },
+        { id: 3, question: "Dari manakah asalnya lagu rakyat 'Jong Jong Inai'?", options: ["Perak", "Negeri Sembilan", "Sabah"], correctAnswer: "Negeri Sembilan", difficulty: "Sederhana" },
+        { id: 4, question: "Lengkapkan lirik lagu 'Can Mali Can': Can mali can, can mali can, can mali can...", options: ["Ketipung payung", "Mari bersayang", "Sama-sama"], correctAnswer: "Ketipung payung", difficulty: "Sederhana" },
+        { id: 5, question: "Apakah maksud perkataan 'Jong' dalam lagu 'Jong Jong Inai'?", options: ["Melompat", "Duduk atau berhimpun", "Makan"], correctAnswer: "Duduk atau berhimpun", difficulty: "Susah" },
+        { id: 6, question: "Apakah jenis irama tarian yang sesuai untuk lagu 'Can Mali Can'?", options: ["Tarian Zapin ringan", "Boria", "Tarian Asli Inang"], correctAnswer: "Tarian Zapin ringan", difficulty: "Susah" }
+    ];
+
+    // --- Status Aplikasi Global ---
+    let currentView = 'home';
+    let currentQuizIndex = 0;
+    let score = 0;
+    let correctAnswers = [];
+    let wrongAnswers = [];
+    let isQuizCompleted = false;
+    let userName = 'Pahlawan Warisan';
+
+    // --- Padankan Dendangan Warisan Game State (NEW) ---
+    let titleItems = []; // Shuffled list of titles
+    let factItems = [];  // Shuffled list of facts
+    let matchedItems = []; // Array of song IDs that have been successfully matched
+    let currentDraggedId = null;
+    const MAX_MATCHES = songs.length;
+
+    // Helper functions
+    const getAppContainer = () => document.getElementById('app');
+
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    }
+
+    function initDragDropGame() {
+        // Create title items (draggable)
+        titleItems = songs.map(song => ({
+            id: song.id,
+            content: song.title
+        }));
+        // Create fact items (drop targets)
+        factItems = songs.map(song => ({
+            id: song.id,
+            content: song.fact
+        }));
+
+        // Shuffle both lists independently
+        titleItems = shuffleArray(titleItems);
+        factItems = shuffleArray(factItems);
+
+        matchedItems = [];
+        currentDraggedId = null;
+    }
+
+    // Drag & Drop Handlers
+    window.handleDragStart = function(event, songId) {
+        event.dataTransfer.setData("text/plain", songId);
+        currentDraggedId = songId;
+        // Optionally add visual feedback to the dragged item
+        event.target.classList.add('opacity-50', 'border-yellow-500');
+    }
+
+    window.handleDragEnd = function(event) {
+        // Remove visual feedback from the dragged item
+        event.target.classList.remove('opacity-50', 'border-yellow-500');
+        currentDraggedId = null;
+    }
+
+    window.handleDragOver = function(event) {
+        event.preventDefault();
+        // Add visual feedback to the drop target
+        event.target.classList.add('drag-over');
+    }
+
+    window.handleDragLeave = function(event) {
+        // Remove visual feedback from the drop target
+        event.target.classList.remove('drag-over');
+    }
+
+    window.handleDrop = function(event, targetFactId) {
+        event.preventDefault();
+        playClickSound();
+
+        // Remove drag-over visual feedback immediately
+        event.target.classList.remove('drag-over');
+
+        const draggedTitleId = event.dataTransfer.getData("text/plain");
+
+        if (draggedTitleId === targetFactId) {
+            // Match found!
+            playMatchSound();
+            matchedItems.push(draggedTitleId);
+
+            // Add success visual feedback to the drop target
+            const dropTarget = event.target.closest('.drop-target-active');
+            if (dropTarget) {
+                dropTarget.classList.remove('bg-green-700', 'bg-red-700'); // Clean up any previous attempts
+                dropTarget.classList.add('drop-target-matched', 'animate-pulse');
+                setTimeout(() => dropTarget.classList.remove('animate-pulse'), 500);
+            }
+
+            // Check for win condition
+            if (matchedItems.length === MAX_MATCHES) {
+                setTimeout(() => showModal('winDragDrop'), 500);
+            }
+
+            // Re-render the game view to update lists
+            renderDragDropGame();
+
+        } else {
+            // No match
+            playFailSound();
+            const dropTarget = event.target.closest('.drop-target-active');
+            if (dropTarget) {
+                 // Temporary visual shake/flash for wrong drop
+                dropTarget.classList.add('bg-red-700', 'animate-shake');
+                setTimeout(() => {
+                    dropTarget.classList.remove('bg-red-700', 'animate-shake');
+                }, 500);
+            }
+        }
+    }
+
+    // --- Pengendali Halaman ---
+
+    function navigate(view, data = null) {
+        initAudioContext();
+        playClickSound();
+        currentView = view;
+
+        // --- View State Initialization ---
+
+        // Game State Setup (Padankan Dendangan Warisan)
+        if (view === 'game') {
+            if ((data && data.reset) || matchedItems.length === MAX_MATCHES || titleItems.length === 0) {
+                initDragDropGame();
+            }
+        }
+
+        // Quiz State Reset (from results screen)
+        if (view === 'quiz' && data && data.reset) {
+            currentQuizIndex = 0;
+            score = 0;
+            correctAnswers = [];
+            wrongAnswers = [];
+            isQuizCompleted = false;
+        }
+
+        // --- Render the view with the correct state ---
+        render();
+    }
+
+    function startQuiz() {
+        // Reset quiz state
+        currentQuizIndex = 0;
+        score = 0;
+        correctAnswers = [];
+        wrongAnswers = [];
+        isQuizCompleted = false;
+
+        const nameInput = document.getElementById('userNameInput');
+        if (nameInput && nameInput.value.trim()) {
+            userName = nameInput.value.trim();
+        } else {
+            userName = 'Pahlawan Warisan';
+        }
+
+        navigate('quiz');
+    }
+
+    function checkAnswer(selectedOption) {
+        playClickSound();
+        if (isQuizCompleted || document.getElementById('quizOptions').classList.contains('disabled-option')) return;
+
+        const question = quizQuestions[currentQuizIndex];
+        const isCorrect = (selectedOption === question.correctAnswer);
+        const optionsContainer = document.getElementById('quizOptions');
+
+        optionsContainer.classList.add('disabled-option');
+
+        Array.from(optionsContainer.children).forEach(button => {
+            if (button.textContent === question.correctAnswer) {
+                button.classList.add('correct-answer');
+            } else if (button.textContent === selectedOption) {
+                button.classList.add('wrong-answer');
+            }
+        });
+
+        const feedbackElement = document.getElementById('feedbackMessage');
+
+        if (isCorrect) {
+            score++;
+            correctAnswers.push(question.id);
+            feedbackElement.innerHTML = `
+                <div class="mt-4 p-4 rounded-xl bg-green-900 border-l-4 border-green-500 text-yellow-300 font-semibold text-lg text-center shadow-md animate-pulse">
+                    Syabas! Jawapan anda BETUL! Anda memang JUARA!
+                </div>
+            `;
+        } else {
+            wrongAnswers.push(question.id);
+            feedbackElement.innerHTML = `
+                <div class="mt-4 p-4 rounded-xl bg-red-900 border-l-4 border-red-500 text-yellow-300 font-semibold text-lg text-center shadow-md animate-pulse">
+                    Ops! Jawapan anda SALAH. Jangan putus asa, mari cuba soalan seterusnya!
+                </div>
+            `;
+        }
+
+        setTimeout(() => {
+            currentQuizIndex++;
+            if (currentQuizIndex < quizQuestions.length) {
+                navigate('quiz');
+            } else {
+                isQuizCompleted = true;
+                navigate('results');
+            }
+        }, 2000);
+    }
+
+    // --- Rendering Game Baru: Padankan Dendangan Warisan (Drag & Drop) ---
+    function renderDragDropGame() {
+        const container = getAppContainer();
+        const unmatchedTitles = titleItems.filter(t => !matchedItems.includes(t.id));
+        const unmatchedFacts = factItems.filter(f => !matchedItems.includes(f.id));
+        const currentScore = matchedItems.length;
+
+        // 1. Titles (Draggable) Column
+        const titlesHtml = unmatchedTitles.map(t => `
+            <div id="title-${t.id}"
+                class="draggable-item p-4 mb-4 rounded-xl bg-blue-600 text-white font-bold text-lg text-center shadow-lg transform hover:shadow-2xl"
+                draggable="true"
+                ondragstart="handleDragStart(event, '${t.id}')"
+                ondragend="handleDragEnd(event)">
+                ${t.content}
+            </div>
+        `).join('');
+
+        // 2. Facts (Drop Target) Column
+        const factsHtml = unmatchedFacts.map(f => `
+            <div id="fact-${f.id}"
+                class="drop-target-active p-4 mb-4 rounded-xl bg-green-700 text-gray-100 font-medium text-base shadow-inner border border-green-400 flex items-center justify-center text-center transition-colors duration-300"
+                ondragover="handleDragOver(event)"
+                ondragleave="handleDragLeave(event)"
+                ondrop="handleDrop(event, '${f.id}')">
+                <span class="text-xl font-bold mr-2 text-yellow-300">FAKTA:</span> ${f.content}
+            </div>
+        `).join('');
+
+        // 3. Matched Pairs Column
+        const matchedHtml = matchedItems.map(id => {
+            const song = songs.find(s => s.id === id);
+            return `
+                <div class="p-4 mb-4 rounded-xl bg-[#059669] text-white border-2 border-green-300 shadow-md flex flex-col items-start">
+                    <p class="font-bold text-lg mb-1">${song.title}</p>
+                    <p class="text-sm italic">${song.fact}</p>
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = `
+            <div class="max-w-6xl w-full p-8 md:p-12 bg-[#2c2c2c] rounded-3xl card-gold-border text-center">
+                <h2 class="title-font text-5xl font-extrabold text-yellow-500 mb-2 interactive-title">
+                    PADANKAN DENDANGAN WARISAN
+                </h2>
+                <p class="text-gray-400 mb-6 text-xl">Seret Tajuk Lagu (Kiri) dan Lepaskan ke Fakta Warisan (Kanan) yang sepadan!</p>
+
+                <!-- Status Bar -->
+                <div class="flex justify-between items-center mb-6 p-4 bg-[#1a1a1a] rounded-xl border border-yellow-700">
+                    <p class="font-bold text-lg text-yellow-500">
+                        Skor Anda: <span class="text-white">${currentScore} / ${MAX_MATCHES} Padanan</span>
+                    </p>
+                    <p class="text-sm text-gray-400">
+                        Tarik Tajuk (Biru) ke Fakta (Hijau)
+                    </p>
+                </div>
+
+                <!-- Game Grid: Titles, Matched, Facts -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 match-list">
+                    <!-- Column 1: Titles (Draggable) -->
+                    <div class="p-4 bg-[#333333] rounded-xl border-2 border-blue-500 min-h-full">
+                        <h3 class="title-font text-2xl font-bold text-blue-400 mb-4">TAJUK LAGU</h3>
+                        ${titlesHtml || '<p class="text-gray-500 italic mt-8">Tiada lagi Tajuk Lagu untuk dipadankan. Cuba lihat yang sudah dipadankan!</p>'}
+                    </div>
+
+                    <!-- Column 2: Matched Pairs (Confirmed) -->
+                    <div class="p-4 bg-[#333333] rounded-xl border-2 border-yellow-500 min-h-full">
+                        <h3 class="title-font text-2xl font-bold text-yellow-400 mb-4">✓ PADANAN SELESAI</h3>
+                        ${matchedHtml || '<p class="text-gray-500 italic mt-8">Tiada padanan lagi. Jom mulakan!</p>'}
+                    </div>
+
+                    <!-- Column 3: Facts (Drop Targets) -->
+                    <div class="p-4 bg-[#333333] rounded-xl border-2 border-green-500 min-h-full">
+                        <h3 class="title-font text-2xl font-bold text-green-400 mb-4">FAKTA WARISAN</h3>
+                        ${factsHtml || '<p class="text-gray-500 italic mt-8">Semua Fakta telah dipadankan.</p>'}
+                    </div>
+                </div>
+
+                <div class="mt-8 flex justify-center space-x-4">
+                    <button onclick="navigate('explore')"
+                        class="vibrant-button px-6 py-3 text-lg font-bold rounded-full text-white bg-red-600 hover:bg-red-700">
+                        Keluar & Jelajah
+                    </button>
+                    <button onclick="navigate('game', {reset: true})"
+                        class="vibrant-button px-6 py-3 text-lg font-bold rounded-full text-black bg-yellow-500 hover:bg-yellow-600">
+                        Mula Semula
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    function showModal(type) {
+        const container = getAppContainer();
+        const modal = document.createElement('div');
+        modal.id = 'gameModal';
+        modal.className = 'fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50';
+
+        let modalContent = '';
+        if (type === 'winDragDrop') {
+            modalContent = `
+                <div class="text-center">
+                    <div class="text-6xl mb-4">👑🏆</div>
+                    <h3 class="title-font text-4xl font-extrabold text-yellow-500 mb-4">TAHNIAH! PENGUASA PADANAN!</h3>
+                    <p class="text-xl text-gray-300 mb-6">Anda berjaya memadankan semua dendangan warisan dengan fakta yang betul! Kefahaman anda sangat kukuh!</p>
+                    <button onclick="playClickSound(); document.getElementById('gameModal').remove(); navigate('quiz');"
+                        class="vibrant-button px-8 py-3 text-lg font-bold rounded-full text-black bg-green-500 hover:bg-green-600">
+                        JOM UJI MINDA!
+                    </button>
+                </div>
+            `;
+        }
+
+        modal.innerHTML = `
+            <div class="bg-[#2c2c2c] rounded-3xl p-8 max-w-md w-full card-gold-border animate-in zoom-in duration-300">
+                ${modalContent}
+            </div>
+        `;
+        container.appendChild(modal);
+    }
+
+    // --- Rendering Halaman Lain (Tidak Berubah) ---
+
+    function renderManual() {
+        const container = getAppContainer();
+        container.innerHTML = `
+            <div class="max-w-4xl w-full p-8 md:p-12 bg-[#2c2c2c] rounded-3xl card-gold-border text-left">
+                <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-4">
+                    <h2 class="title-font text-4xl font-extrabold text-yellow-500">Manual Penggunaan</h2>
+                    <button onclick="navigate('home')" class="vibrant-button text-white hover:text-yellow-500 font-semibold flex items-center">
+                        <svg class="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+                        Utama
+                    </button>
+                </div>
+
+                <div class="space-y-6 text-gray-300">
+                    <div class="p-4 bg-[#1a1a1a] rounded-xl border border-yellow-700">
+                        <h3 class="title-font text-2xl font-bold text-yellow-500 mb-2">1. Jelajah Lagu</h3>
+                        <p>Pilih butang 'Jelajah Lagu' untuk melihat koleksi lagu rakyat. Setiap lagu mempunyai lirik penuh, pautan YouTube, dan modul pembelajaran (fakta menarik). Klik pada kad lagu untuk membuka modul. Gunakan butang **Kembali** dalam modul untuk navigasi yang lancar.</p>
+                    </div>
+                    <div class="p-4 bg-[#1a1a1a] rounded-xl border border-yellow-700">
+                        <h3 class="title-font text-2xl font-bold text-yellow-500 mb-2">2. Padankan Dendangan Warisan (Gamifikasi BARU)</h3>
+                        <p>Ini ialah permainan seret & lepas. Seret **Tajuk Lagu (Biru)** ke atas **Fakta Warisan (Hijau)** yang betul. Setelah dipadankan, pasangan itu akan bergerak ke tengah. Padankan **${MAX_MATCHES} Pasangan** untuk menang!</p>
+                    </div>
+                    <div class="p-4 bg-[#1a1a1a] rounded-xl border border-yellow-700">
+                        <h3 class="title-font text-2xl font-bold text-yellow-500 mb-2">3. Uji Minda</h3>
+                        <p>Jawab soalan aneka pilihan mengenai lagu rakyat. Lengkapkan kuiz untuk menerima sijil pencapaian anda.</p>
+                    </div>
+                    <div class="p-4 bg-[#1a1a1a] rounded-xl border border-yellow-700">
+                        <h3 class="title-font text-2xl font-bold text-yellow-500 mb-2">4. Tetapan (Mesra Inklusif)</h3>
+                        <p>Gunakan butang 'Tetapan' di laman utama untuk mengubah **Saiz Fon** (kecil, sederhana, besar) agar sesuai dengan keperluan visual anda, dan mengawal fungsi **Bunyi Klik** pada interaksi.</p>
+                    </div>
+                </div>
+
+                <div class="mt-8 text-center">
+                    <button onclick="navigate('home')"
+                        class="vibrant-button px-8 py-3 text-lg font-bold rounded-full text-black bg-yellow-500 hover:bg-yellow-600">
+                        Faham! Mari Bermula
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderSettings() {
+        const container = getAppContainer();
+        const soundStatus = globalSettings.soundEnabled ? 'Aktif' : 'Tidak Aktif';
+
+        container.innerHTML = `
+            <div class="max-w-xl w-full p-8 md:p-12 bg-[#2c2c2c] rounded-3xl card-gold-border text-left">
+                <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-4">
+                    <h2 class="title-font text-4xl font-extrabold text-yellow-500">Tetapan Inovasi</h2>
+                    <button onclick="navigate('home')" class="vibrant-button text-white hover:text-yellow-500 font-semibold flex items-center">
+                        <svg class="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+                        Utama
+                    </button>
+                </div>
+
+                <div class="space-y-8">
+                    <!-- Tetapan Bunyi -->
+                    <div class="p-4 bg-[#1a1a1a] rounded-xl border border-yellow-700">
+                        <h3 class="title-font text-2xl font-bold text-yellow-500 mb-3">Kawalan Bunyi</h3>
+                        <p class="text-gray-300 mb-3">Bunyi Klik: <span class="font-semibold text-white">${soundStatus}</span></p>
+                        <button onclick="toggleSound()"
+                            class="vibrant-button px-6 py-2 font-semibold rounded-full ${globalSettings.soundEnabled ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}">
+                            ${globalSettings.soundEnabled ? 'Matikan Bunyi' : 'Aktifkan Bunyi'}
+                        </button>
+                    </div>
+
+                    <!-- Tetapan Saiz Fon (Mesra Inklusif) -->
+                    <div class="p-4 bg-[#1a1a1a] rounded-xl border border-yellow-700">
+                        <h3 class="title-font text-2xl font-bold text-yellow-500 mb-3">Saiz Teks (Accessibility)</h3>
+                        <p class="text-gray-300 mb-4">Pilih saiz fon untuk keselesaan visual:</p>
+                        <div class="flex justify-between space-x-3">
+                            <button onclick="changeFontSize('small')"
+                                class="vibrant-button px-4 py-2 text-sm font-bold rounded-lg ${globalSettings.fontSize === 'small' ? 'bg-yellow-500 text-black' : 'bg-gray-600 text-white'}">
+                                A- Kecil
+                            </button>
+                            <button onclick="changeFontSize('medium')"
+                                class="vibrant-button px-4 py-2 text-base font-bold rounded-lg ${globalSettings.fontSize === 'medium' ? 'bg-yellow-500 text-black' : 'bg-gray-600 text-white'}">
+                                A Sederhana
+                            </button>
+                            <button onclick="changeFontSize('large')"
+                                class="vibrant-button px-4 py-2 text-xl font-bold rounded-lg ${globalSettings.fontSize === 'large' ? 'bg-yellow-500 text-black' : 'bg-gray-600 text-white'}">
+                                A+ Besar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-8 text-center">
+                    <button onclick="navigate('home')"
+                        class="vibrant-button px-8 py-3 text-lg font-bold rounded-full text-white bg-indigo-600 hover:bg-indigo-700">
+                        Simpan & Kembali
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    function toggleSound() {
+        globalSettings.soundEnabled = !globalSettings.soundEnabled;
+        renderSettings();
+    }
+
+    function changeFontSize(size) {
+        globalSettings.fontSize = size;
+        applySettings();
+        renderSettings();
+    }
+
+    // --- Rendering Halaman Utama ---
+    function renderHome() {
+        const container = getAppContainer();
+        container.innerHTML = `
+            <div class="max-w-4xl w-full p-8 md:p-12 bg-[#2c2c2c] rounded-3xl card-gold-border text-center">
+
+                <!-- Welcome Message (MANDATORY) -->
+                <div class="bg-yellow-500 p-4 rounded-xl mb-6 shadow-2xl">
+                    <h2 class="title-font text-3xl font-extrabold text-black">SELAMAT DATANG PAHLAWAN WARISAN!</h2>
+                </div>
+
+                <!-- Header Logo/Title -->
+                <div class="mb-8">
+                    <div class="text-6xl mb-4" role="img" aria-label="Microphone and music notes">🎤👑</div>
+                    <h1 class="title-font text-5xl font-extrabold text-yellow-500 tracking-tight">
+                        PENGLIPUR LARA DIGITAL
+                    </h1>
+                    <p class="title-font text-3xl font-light text-white mt-2">
+                        DENDANG WARISAN
+                    </p>
+                </div>
+
+                <!-- Action Buttons: Explore & Game -->
+                <div class="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-6">
+                    <button onclick="navigate('explore')"
+                        class="vibrant-button inline-flex items-center justify-center px-8 py-4 text-xl font-bold rounded-full text-black bg-yellow-500 hover:bg-yellow-600 focus:outline-none focus:ring-4 focus:ring-yellow-300">
+                        <svg class="w-6 h-6 mr-2" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15v-4H7v-2h4V7h2v4h4v2h-4v4h-2z"/></svg>
+                        Jelajah Lagu
+                    </button>
+                    <button onclick="navigate('game')"
+                        class="vibrant-button inline-flex items-center justify-center px-8 py-4 text-xl font-bold rounded-full text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300">
+                        <svg class="w-6 h-6 mr-2" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zM10 16.5l-2-2 1.41-1.41L10 13.67l4.59-4.59L16 10.5l-6 6z"/></svg>
+                        Main Padankan Dendangan
+                    </button>
+                </div>
+
+                <!-- Utility Buttons: Manual & Settings -->
+                <div class="mt-8 pt-6 border-t border-gray-700 flex flex-col sm:flex-row justify-center space-y-3 sm:space-y-0 sm:space-x-4">
+                    <button onclick="navigate('manual')"
+                        class="vibrant-button px-6 py-3 text-lg font-semibold rounded-full text-black bg-gray-400 hover:bg-gray-300">
+                        <svg class="w-5 h-5 inline-block mr-1" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm-3.88 15.12L9.34 14.5l-1.41 1.41-1.06-1.06 1.41-1.41L6.87 12l-1.41-1.41 1.06-1.06 1.41 1.41 1.06-1.06 1.41 1.41L11 15.93zM13 9V3.5L18.5 9H13z"/></svg>
+                        Manual Penggunaan
+                    </button>
+                    <button onclick="navigate('settings')"
+                        class="vibrant-button px-6 py-3 text-lg font-semibold rounded-full text-white bg-gray-600 hover:bg-gray-700">
+                        <svg class="w-5 h-5 inline-block mr-1" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.38-1.09-.69-1.71-.91L15 2h-4l-.5 3.59c-.63.23-1.21.55-1.74.93l-2.5-1.01c-.2-.08-.43-.01-.55.19l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.38 1.09.69 1.71.91L11 22h4l.5-3.59c.63-.23 1.21-.55 1.74-.93l2.5 1.01c.2.08.43.01.55-.19l2-3.46c.13-.22.07-.49-.12-.64l-2.11-1.65zm-7.43 3.02c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z"/></svg>
+                        Tetapan
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderExplore() {
+        const container = getAppContainer();
+        const songCards = songs.map(song => `
+            <div onclick="showModule('${song.id}')"
+                class="bg-[#333333] rounded-2xl p-6 flex flex-col items-center card-gold-border hover:shadow-xl transition duration-300 cursor-pointer transform hover:scale-[1.02]">
+                <img src="${song.image}" alt="Imej ${song.title}" class="w-24 h-24 object-cover rounded-full mb-4 border-4 border-yellow-500">
+                <h3 class="title-font text-2xl font-bold text-yellow-500 mb-2">${song.title}</h3>
+                <p class="text-sm text-gray-400 text-center">Klik untuk lirik & modul</p>
+                <span class="mt-2 text-xs font-semibold text-black bg-yellow-500 px-3 py-1 rounded-full">Sedia</span>
+            </div>
+        `).join('');
+
+        container.innerHTML = `
+            <div class="max-w-5xl w-full p-6 md:p-8 bg-[#2c2c2c] rounded-3xl card-gold-border">
+                <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-4">
+                    <h2 class="title-font text-4xl font-extrabold text-yellow-500">Jelajah Warisan Lagu</h2>
+                    <button onclick="navigate('home')" class="vibrant-button text-white hover:text-yellow-500 font-semibold flex items-center">
+                        <svg class="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+                        Utama
+                    </button>
+                </div>
+                <p class="text-gray-400 mb-8 text-center md:text-left text-lg">Pilih lagu untuk belajar lirik dan fakta sebelum bermain 'Padankan Dendangan Warisan' atau 'Uji Minda'.</p>
+
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
+                    ${songCards}
+                </div>
+
+                <div class="text-center mt-10 p-6 bg-[#1a1a1a] rounded-xl border-2 border-indigo-500">
+                    <p class="title-font text-2xl font-semibold text-white mb-4">Sedia untuk Mencabar Diri?</p>
+
+                    <div class="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-4">
+                        <input type="text" id="userNameInput" value="${userName === 'Pahlawan Warisan' ? '' : userName}" placeholder="Masukkan Nama Anda (untuk Sijil)" class="px-4 py-2 border-2 border-yellow-500 rounded-lg focus:ring-yellow-500 focus:border-yellow-500 w-full sm:w-64 text-center bg-[#333333] text-white placeholder-gray-500">
+                        <button onclick="startQuiz()"
+                            class="vibrant-button w-full sm:w-auto px-6 py-3 text-lg font-bold rounded-full text-black bg-yellow-500 hover:bg-yellow-600">
+                            Terus ke Uji Minda!
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function showModule(songId) {
+        playClickSound();
+        const song = songs.find(s => s.id === songId);
+        if (!song) return;
+
+        const container = getAppContainer();
+        const modal = document.createElement('div');
+        modal.id = 'moduleModal';
+        modal.className = 'fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50';
+
+        modal.innerHTML = `
+            <div class="bg-[#2c2c2c] rounded-3xl p-8 max-w-lg w-full card-gold-border animate-in zoom-in duration-300 text-left">
+                <div class="flex justify-between items-start mb-6 border-b border-gray-600 pb-3">
+                    <h3 class="title-font text-3xl font-extrabold text-yellow-500">${song.title}</h3>
+                    <!-- 'X' button for closing -->
+                    <button onclick="playClickSound(); document.getElementById('moduleModal').remove()" class="text-gray-400 hover:text-white text-3xl leading-none">&times;</button>
+                </div>
+
+                <div class="module-content overflow-y-auto max-h-96 text-left">
+                    <div class="p-4 bg-[#1a1a1a] rounded-xl mb-4 border border-gray-700">
+                        <h4 class="font-bold text-xl text-indigo-400 mb-2">Lirik Lagu:</h4>
+                        <p class="italic text-gray-300 whitespace-pre-wrap">${song.lyrics}</p>
+                        <a href="${song.youtubeLink}" target="_blank" class="text-sm text-yellow-500 hover:text-yellow-300 flex items-center mt-2">
+                            <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19.615 3.111c-.768-.28-3.834-.09-9.615-.09s-8.847-.19-9.615.09c-.768.28-1.185.877-1.185 1.889v14c0 1.012.417 1.609 1.185 1.889.768.28 3.834.09 9.615.09s8.847.19 9.615-.09c.768-.28 1.185-.877 1.185-1.889v-14c0-1.012-.417-1.609-1.185-1.889zM9 15V7l6 4-6 4z"/></svg>
+                            Tonton di YouTube
+                        </a>
+                    </div>
+                    ${song.module}
+                </div>
+                <div class="text-center mt-6">
+                    <!-- Explicit Kembali Button (MANDATORY) -->
+                    <button onclick="playClickSound(); document.getElementById('moduleModal').remove()"
+                        class="vibrant-button px-6 py-2 bg-yellow-500 text-black font-semibold rounded-full hover:bg-yellow-600">
+                        <svg class="w-4 h-4 inline-block mr-1" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" transform="rotate(180)"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+                        Kembali ke Jelajah Lagu
+                    </button>
+                </div>
+            </div>
+        `;
+        container.appendChild(modal);
+    }
+
+    function renderQuiz() {
+        const container = getAppContainer();
+        const question = quizQuestions[currentQuizIndex];
+        const totalQuestions = quizQuestions.length;
+
+        const optionsHtml = question.options.map(option => `
+            <button onclick="checkAnswer('${option}')"
+                class="quiz-option w-full text-left p-4 rounded-xl mb-3 text-lg font-medium hover:bg-[#444444] transition duration-150 ease-in-out border border-gray-600">
+                ${option}
+            </button>
+        `).join('');
+
+        const indexHtml = quizQuestions.map((q, index) => {
+            let statusClass = 'bg-[#444444] text-gray-400';
+            if (index < currentQuizIndex) {
+                if (correctAnswers.includes(q.id)) {
+                    statusClass = 'bg-green-700 text-white';
+                } else if (wrongAnswers.includes(q.id)) {
+                    statusClass = 'bg-red-700 text-white';
+                }
+            } else if (index === currentQuizIndex) {
+                statusClass = 'bg-yellow-500 text-black border-2 border-white transform scale-110';
+            }
+
+            return `<div class="w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${statusClass} transition duration-300 shadow-md">${index + 1}</div>`;
+        }).join('');
+
+        container.innerHTML = `
+            <div class="max-w-screen-md w-full p-6 md:p-8 bg-[#2c2c2c] rounded-3xl card-gold-border">
+                <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-4">
+                    <h2 class="title-font text-4xl font-extrabold text-yellow-500">UJI MINDA WARISAN</h2>
+                    <button onclick="navigate('explore')" class="text-sm text-gray-400 hover:text-white vibrant-button">
+                        Kembali
+                    </button>
+                </div>
+
+                <!-- Score Index -->
+                <div class="flex justify-center space-x-2 mb-8 p-3 bg-[#1a1a1a] rounded-lg border border-gray-700">
+                    ${indexHtml}
+                </div>
+
+                <!-- Question Card -->
+                <div class="p-6 bg-[#333333] rounded-2xl border-4 border-yellow-600 shadow-xl mb-6">
+                    <p class="text-sm font-semibold text-yellow-500 mb-2">Soalan ${currentQuizIndex + 1} dari ${totalQuestions} (Aras: ${question.difficulty})</p>
+                    <p class="text-xl font-bold text-white">${question.question}</p>
+                </div>
+
+                <!-- Options -->
+                <div id="quizOptions" class="space-y-3">
+                    ${optionsHtml}
+                </div>
+
+                <!-- Feedback Message -->
+                <div id="feedbackMessage">
+                    <!-- Pujian/Motivasi akan muncul di sini -->
+                </div>
+            </div>
+        `;
+    }
+
+    function generateResults() {
+        const container = getAppContainer();
+        const totalQuestions = quizQuestions.length;
+        const finalScore = score;
+        const percentage = Math.round((finalScore / totalQuestions) * 100);
+        const uniqueId = Math.random().toString(36).substring(2, 10).toUpperCase();
+
+        let badgeTitle = '';
+        let badgeColor = '';
+        let encouragement = '';
+        let badgeIcon = '';
+
+        if (percentage === 100) {
+            badgeTitle = 'MAHKOTA EMAS PENGLIPUR LARA';
+            badgeColor = 'bg-yellow-900 text-yellow-300 border-yellow-500';
+            encouragement = 'Pencapaian luar biasa! Anda adalah JUARA terunggul! Kekalkan prestasi cemerlang ini!';
+            badgeIcon = `
+                <svg class="w-20 h-20 text-yellow-400 badge-icon" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                </svg>
+            `;
+        } else if (percentage >= 70) {
+            badgeTitle = 'LENCANA PERAK WARISAN BUDAYA';
+            badgeColor = 'bg-gray-700 text-gray-300 border-gray-500';
+            encouragement = 'Hebat! Kefahaman anda sangat baik. Cuba lagi untuk mencapai Mahkota Emas!';
+            badgeIcon = `
+                <svg class="w-20 h-20 text-gray-400 badge-icon" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zM10 16.5l-2-2 1.41-1.41L10 13.67l4.59-4.59L16 10.5l-6 6z"/>
+                </svg>
+            `;
+        } else {
+            badgeTitle = 'PINGAT GANGSA PEJUANG LAGU';
+            badgeColor = 'bg-red-900 text-red-300 border-red-500';
+            encouragement = 'Tahniah kerana mencuba! Teruskan usaha dan ulangi modul pembelajaran untuk skor yang lebih baik!';
+            badgeIcon = `
+                <svg class="w-20 h-20 text-red-400 badge-icon" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 16c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/>
+                </svg>
+            `;
+        }
+
+        container.innerHTML = `
+            <div class="max-w-5xl w-full p-6 md:p-8 bg-[#2c2c2c] rounded-3xl card-gold-border text-center">
+                <h2 class="title-font text-5xl font-extrabold text-yellow-500 mb-4">🎉 Keputusan Warisan Anda! 🎉</h2>
+                <p class="text-xl text-gray-400 mb-8">${encouragement}</p>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Lencana (Badge) Card -->
+                    <div class="p-6 rounded-2xl ${badgeColor} border-4 card-gold-border">
+                        <h3 class="title-font text-3xl font-bold mb-4">LENCANA DENDANG</h3>
+                        <div class="flex justify-center items-center mb-4">
+                            ${badgeIcon}
+                        </div>
+                        <p class="text-2xl font-extrabold">${badgeTitle}</p>
+                        <p class="text-lg mt-2">${userName}</p>
+                    </div>
+
+                    <!-- Keputusan Kuiz Card -->
+                    <div class="p-6 rounded-2xl bg-[#333333] border-4 border-yellow-500 shadow-xl">
+                        <h3 class="title-font text-3xl font-bold text-yellow-500 mb-4">Analisis Skor</h3>
+                        <p class="text-6xl font-extrabold text-green-500 mb-2">${percentage}%</p>
+                        <p class="text-xl font-semibold text-gray-300 mb-4">${finalScore} / ${totalQuestions} Jawapan Betul</p>
+                        <div class="flex justify-center space-x-6 text-lg">
+                            <span class="text-green-500 font-bold">Betul: ${correctAnswers.length}</span>
+                            <span class="text-red-500 font-bold">Salah: ${wrongAnswers.length}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sijil (Certificate) Preview -->
+                <div class="mt-10 p-6 bg-white border-8 border-double border-yellow-600 rounded-2xl text-gray-800 shadow-2xl">
+                    <p class="title-font text-xl italic mb-2 text-indigo-700">Dengan Sukacitanya Dianugerahkan Kepada</p>
+                    <p class="title-font text-6xl font-extrabold text-black border-b-4 border-yellow-500 inline-block pb-2 px-4 mb-4">${userName.toUpperCase()}</p>
+                    <p class="text-xl mt-4 mb-6">
+                        Kerana telah berjaya melengkapkan Kuiz Warisan 'Penglipur Lara Digital: Dendang Warisan' dengan pencapaian cemerlang!
+                    </p>
+                    <p class="text-sm text-gray-500">
+                        Bertarikh: ${new Date().toLocaleDateString('ms-MY')} | ID Sijil: ${uniqueId}
+                    </p>
+                    <p class="text-xs text-red-500 mt-2">Sila ambil gambar sijil ini sebagai rekod anda!</p>
+                </div>
+
+                <!-- Footer Buttons -->
+                <div class="mt-8 flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
+                    <button onclick="navigate('explore')"
+                        class="vibrant-button px-8 py-3 text-lg font-bold rounded-full text-white bg-indigo-600 hover:bg-indigo-700">
+                        Jelajah Lagu Lagi
+                    </button>
+                    <button onclick="navigate('quiz', {reset: true})"
+                        class="vibrant-button px-8 py-3 text-lg font-bold rounded-full text-black border-2 border-yellow-500 bg-yellow-500 hover:bg-yellow-600">
+                        Ulangi Kuiz
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    // --- Main Function ---
+    function render() {
+        applySettings();
+
+        const container = getAppContainer();
+        container.classList.add('justify-center');
+
+        if (currentView === 'home') {
+            renderHome();
+        } else if (currentView === 'manual') {
+            renderManual();
+        } else if (currentView === 'settings') {
+            renderSettings();
+        } else if (currentView === 'explore') {
+            renderExplore();
+        } else if (currentView === 'game') {
+            // Updated game render function
+            renderDragDropGame();
+        } else if (currentView === 'quiz') {
+            renderQuiz();
+        } else if (currentView === 'results') {
+            generateResults();
+        }
+    }
+
+    // Initialize the app
+    window.onload = () => {
+        applySettings();
+        navigate('home');
+    };
+</script>
+
+</body>
+</html><html>
