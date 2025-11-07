@@ -746,8 +746,8 @@
                 🎉 Hai Pahlawan Warisan! 🎶
                 </h2>
                 <p class="mt-4 text-lg sm:text-xl text-amber-900 font-semibold leading-relaxed" style="font-family: 'Comic Neue',                        cursive;">
-                Jom sertai pengembaraan muzik dalam <span class="text-indigo-600 font-bold">Penglipur Lara Digital</span>!<br>
-                Kenali dan nyanyikan <span class="underline decoration-amber-500">lagu-lagu rakyat Melayu</span>,<br>
+                Jom sertai pengembaraan muzik dalam <span class=>Penglipur Lara Digital</span>!<br>
+                Kenali dan nyanyikan <span class=>lagu-lagu rakyat Melayu</span>,<br>
                 padankan dendangan dan rebut gelaran <strong>Juara Dendang Warisan!</strong> 👑
                 </p>
                 </div>
@@ -1072,3 +1072,4 @@
 </body>
 
 </html><html>
+
