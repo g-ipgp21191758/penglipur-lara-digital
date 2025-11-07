@@ -741,12 +741,21 @@
             <div class="max-w-4xl w-full p-8 md:p-12 bg-[#2c2c2c] rounded-3xl card-gold-border text-center">
 
                 <!-- Welcome Message (MANDATORY) -->
-                <div class="bg-yellow-500 p-4 rounded-xl mb-6 shadow-2xl">
+                <div class="p-6 bg-gradient-to-r from-amber-100 via-orange-100 to-yellow-100 rounded-3xl mb-6 shadow-lg border border-                    amber-300 text-center">
+                <h2 class="font-extrabold text-4xl sm:text-5xl text-amber-800 drop-shadow-md" style="font-family: 'Fredoka One',                         cursive;">
+                🎉 Hai Pahlawan Warisan! 🎶
+                </h2>
+                <p class="mt-4 text-lg sm:text-xl text-amber-900 font-semibold leading-relaxed" style="font-family: 'Comic Neue',                        cursive;">
+                Jom sertai pengembaraan muzik dalam <span class="text-indigo-600 font-bold">Penglipur Lara Digital</span>!<br>
+                Kenali dan nyanyikan <span class="underline decoration-amber-500">lagu-lagu rakyat Melayu</span>,<br>
+                padankan dendangan dan rebut gelaran <strong>Juara Dendang Warisan!</strong> 👑
+                </p>
+                </div>
                     <h2 class="title-font text-3xl font-extrabold text-black">SELAMAT DATANG PAHLAWAN WARISAN!</h2>
                 </div>
 
                 <!-- Header Logo/Title -->
-                <div class="mb-8">
+                <div class="text-center my-6">
                     <div class="text-6xl mb-4" role="img" aria-label="Microphone and music notes">🎤👑</div>
                     <h1 class="title-font text-5xl font-extrabold text-yellow-500 tracking-tight">
                         PENGLIPUR LARA DIGITAL
@@ -1061,4 +1070,5 @@
 </script>
 
 </body>
+
 </html><html>
