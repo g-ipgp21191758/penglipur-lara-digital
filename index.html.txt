@@ -751,7 +751,7 @@
                 padankan dendangan dan rebut gelaran <strong>Juara Dendang Warisan!</strong> 👑
                 </p>
                 </div>
-                    <h2 class="title-font text-3xl font-extrabold text-black">SELAMAT DATANG PAHLAWAN WARISAN!</h2>
+                    <h2 class="title-font text-3xl font-extrabold text-cream">SELAMAT DATANG PAHLAWAN WARISAN!</h2>
                 </div>
 
                 <!-- Header Logo/Title -->
@@ -1072,4 +1072,5 @@
 </body>
 
 </html><html>
+
 
